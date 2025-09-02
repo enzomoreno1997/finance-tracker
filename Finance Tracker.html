@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Tracker with Charts</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #2c3e50;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 20px;
+    }
+
+    input, select, button {
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    button {
+      background: #27ae60;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #219150;
+    }
+
+    .summary {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .summary div {
+      padding: 10px;
+      border-radius: 8px;
+      flex: 1;
+      margin: 5px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .income { background: #eafaf1; color: #27ae60; }
+    .expense { background: #fdecea; color: #c0392b; }
+    .balance { background: #ecf0f1; color: #2c3e50; }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      padding: 10px;
+      margin: 5px 0;
+      background: #f9f9f9;
+      border-left: 6px solid;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    li.income { border-color: #27ae60; }
+    li.expense { border-color: #c0392b; }
+
+    canvas {
+      margin-top: 20px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💰 Finance Tracker</h1>
+    <p>Track your income and expenses with charts</p>
+  </header>
+
+  <div class="container">
+    <!-- Summary -->
+    <div class="summary">
+      <div class="income">Income: ₱<span id="income">0</span></div>
+      <div class="expense">Expense: ₱<span id="expense">0</span></div>
+      <div class="balance">Balance: ₱<span id="balance">0</span></div>
+    </div>
+
+    <!-- Add Transaction -->
+    <form id="transaction-form">
+      <input type="text" id="description" placeholder="Description (e.g. Salary, Food)" required>
+      <input type="number" id="amount" placeholder="Amount" required>
+      <select id="type">
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+      <select id="category">
+        <option value="Salary">Salary</option>
+        <option value="Food">Food</option>
+        <option value="Bills">Bills</option>
+        <option value="Travel">Travel</option>
+        <option value="Others">Others</option>
+      </select>
+      <button type="submit">+ Add Transaction</button>
+    </form>
+
+    <!-- Transaction List -->
+    <h3>📒 Transaction History</h3>
+    <ul id="transaction-list"></ul>
+
+    <!-- Charts -->
+    <h3>📊 Finance Overview</h3>
+    <canvas id="chart"></canvas>
+  </div>
+
+  <script>
+    const form = document.getElementById("transaction-form");
+    const list = document.getElementById("transaction-list");
+    const incomeEl = document.getElementById("income");
+    const expenseEl = document.getElementById("expense");
+    const balanceEl = document.getElementById("balance");
+
+    let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+
+    // Chart setup
+    const ctx = document.getElementById("chart").getContext("2d");
+    let financeChart = new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: ["Income", "Expense"],
+        datasets: [{
+          data: [0, 0],
+          backgroundColor: ["#27ae60", "#c0392b"]
+        }]
+      }
+    });
+
+    function updateSummary() {
+      let income = 0, expense = 0;
+      transactions.forEach(t => {
+        if (t.type === "income") income += t.amount;
+        else expense += t.amount;
+      });
+      incomeEl.textContent = income.toFixed(2);
+      expenseEl.textContent = expense.toFixed(2);
+      balanceEl.textContent = (income - expense).toFixed(2);
+
+      // Update chart
+      financeChart.data.datasets[0].data = [income, expense];
+      financeChart.update();
+    }
+
+    function renderTransactions() {
+      list.innerHTML = "";
+      transactions.forEach((t, index) => {
+        const li = document.createElement("li");
+        li.classList.add(t.type);
+        li.innerHTML = `
+          <span>${t.description} (${t.category})</span>
+          <span>₱${t.amount.toFixed(2)}</span>
+          <button onclick="deleteTransaction(${index})">❌</button>
+        `;
+        list.appendChild(li);
+      });
+      updateSummary();
+    }
+
+    function deleteTransaction(index) {
+      transactions.splice(index, 1);
+      localStorage.setItem("transactions", JSON.stringify(transactions));
+      renderTransactions();
+    }
+
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const description = document.getElementById("description").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+      const type = document.getElementById("type").value;
+      const category = document.getElementById("category").value;
+
+      const transaction = { description, amount, type, category };
+      transactions.push(transaction);
+      localStorage.setItem("transactions", JSON.stringify(transactions));
+      form.reset();
+      renderTransactions();
+    });
+
+    // Initial load
+    renderTransactions();
+  </script>
+</body>
+</html>
